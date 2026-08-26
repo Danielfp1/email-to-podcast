@@ -1,7 +1,8 @@
 {
   "functions": {
     "api/tts.ts": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "{lib,shared}/**"
     }
   }
 }

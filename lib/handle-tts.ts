@@ -1,6 +1,6 @@
-import { MAX_TTS_CHARS, resolveTtsVoice } from "../shared/limits";
-import { isAuthorized } from "./auth";
-import { synthesizeMp3 } from "./tts";
+import { MAX_TTS_CHARS, resolveTtsVoice } from "../shared/limits.js";
+import { isAuthorized } from "./auth.js";
+import { synthesizeMp3 } from "./tts.js";
 
 function jsonError(status: number, error: string): Response {
   return Response.json({ error }, { status });

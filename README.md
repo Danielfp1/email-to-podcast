@@ -27,9 +27,7 @@ A senha na página é o mesmo `APP_SECRET`. Ela fica só no `sessionStorage`, n�
 
 ## Deploy (Hobby, projeto separado)
 
-Projeto Vercel **à parte** do portfólio. Defina `APP_SECRET` no painel (Production e Preview). Não prefixe com `VITE_`.
-
-Confira no browser, desktop e telefone. Deployment Protection é opcional além do Bearer.
+Instância: [email-to-podcast.dan-figueiredo.dev.br](https://email-to-podcast.dan-figueiredo.dev.br). Projeto Vercel **à parte** do portfólio. `APP_SECRET` só no painel (Production e Preview). Não prefixe com `VITE_`.
 
 ## O que não vai para o Git
 

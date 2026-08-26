@@ -104,3 +104,6 @@ out/
 # pnpm store
 .pnpm-store/
 .vercel
+
+.vercel
+.env*

@@ -1,6 +1,6 @@
 import { Readable } from "node:stream";
 import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
-import type { TtsVoiceId } from "../shared/limits";
+import type { TtsVoiceId } from "../shared/limits.js";
 
 function escapeXml(text: string): string {
   return text

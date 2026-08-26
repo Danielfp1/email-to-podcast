@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage } from "node:http";
-import { handleTtsPost } from "../lib/handle-tts";
+import { handleTtsPost } from "../lib/handle-tts.js";
 
 const PORT = 3001;
 

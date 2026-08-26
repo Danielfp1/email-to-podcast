@@ -1,4 +1,4 @@
-import { handleTtsPost } from "../lib/handle-tts";
+import { handleTtsPost } from "../lib/handle-tts.js";
 
 export const maxDuration = 60;
 
