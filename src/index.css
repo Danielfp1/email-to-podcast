@@ -1,0 +1,142 @@
+:root {
+  color-scheme: dark;
+  --bg: #3b4252;
+  --ink: #eceff4;
+  --muted: #d8dee9;
+  --card: #434c5e;
+  --line: #4c566a;
+  --field: #2e3440;
+  --accent: #88c0d0;
+  --accent-ink: #2e3440;
+  --error: #bf616a;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  line-height: 1.45;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.page {
+  width: min(40rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+}
+
+.hero h1 {
+  margin: 0.2rem 0 0.5rem;
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  letter-spacing: -0.03em;
+}
+
+.eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.lede,
+.privacy,
+.hint {
+  color: var(--muted);
+}
+
+.panel {
+  display: grid;
+  gap: 0.45rem;
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}
+
+label {
+  font-weight: 600;
+  margin-top: 0.4rem;
+}
+
+textarea,
+input[type="password"],
+select {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  font: inherit;
+  color: var(--ink);
+  background: var(--field);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 10rem;
+}
+
+.hint {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+}
+
+.error {
+  margin: 0.4rem 0 0;
+  color: var(--error);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.8rem;
+}
+
+button,
+.download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+button {
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: progress;
+}
+
+.download {
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.player {
+  width: 100%;
+  margin-top: 0.9rem;
+}
+
+.privacy {
+  font-size: 0.9rem;
+}

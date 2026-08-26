@@ -66,6 +66,10 @@ typings/
 .env
 .env.test
 .env*
+!.env.example
+
+# Vite
+dist/
 
 # next types
 next-env.d.ts
