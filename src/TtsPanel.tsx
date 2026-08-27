@@ -2,7 +2,6 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import {
   DEFAULT_TTS_VOICE,
   MAX_TTS_CHARS,
-  SECRET_STORAGE_KEY,
   TTS_VOICES,
   VOICE_STORAGE_KEY,
   isTtsVoiceId,
@@ -11,14 +10,6 @@ import {
 
 const SAMPLE =
   "Bom dia. Este é um texto de exemplo para ouvir em voz alta, testando 1, 2, 3.";
-
-function readStoredSecret(): string {
-  try {
-    return sessionStorage.getItem(SECRET_STORAGE_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
 
 function readStoredVoice(): TtsVoiceId {
   try {
@@ -30,14 +21,16 @@ function readStoredVoice(): TtsVoiceId {
   return DEFAULT_TTS_VOICE;
 }
 
-export function TtsPanel() {
+type TtsPanelProps = {
+  secret: string;
+};
+
+export function TtsPanel({ secret }: TtsPanelProps) {
   const textId = useId();
   const voiceId = useId();
-  const secretId = useId();
   const errorId = useId();
   const [text, setText] = useState(SAMPLE);
   const [voice, setVoice] = useState(readStoredVoice);
-  const [secret, setSecret] = useState(readStoredSecret);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -68,7 +61,6 @@ export function TtsPanel() {
     setError(null);
 
     try {
-      sessionStorage.setItem(SECRET_STORAGE_KEY, secret);
       sessionStorage.setItem(VOICE_STORAGE_KEY, voice);
     } catch {
       // sessionStorage pode estar bloqueado; a requisição ainda segue.
@@ -109,6 +101,7 @@ export function TtsPanel() {
 
   return (
     <form className="panel" onSubmit={onSubmit} noValidate>
+      <h2>Texto para áudio</h2>
       <label htmlFor={textId}>Texto</label>
       <textarea
         id={textId}
@@ -139,17 +132,6 @@ export function TtsPanel() {
           </option>
         ))}
       </select>
-
-      <label htmlFor={secretId}>Senha</label>
-      <input
-        id={secretId}
-        name="secret"
-        type="password"
-        autoComplete="off"
-        value={secret}
-        onChange={(event) => setSecret(event.target.value)}
-        disabled={busy}
-      />
 
       {error ? (
         <p id={errorId} className="error" role="alert">

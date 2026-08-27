@@ -3,6 +3,10 @@
     "api/tts.ts": {
       "maxDuration": 60,
       "includeFiles": "{lib,shared}/**"
+    },
+    "api/stt.ts": {
+      "maxDuration": 60,
+      "includeFiles": "{lib,shared}/**"
     }
   }
 }

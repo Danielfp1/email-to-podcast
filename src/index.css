@@ -66,8 +66,18 @@ label {
   margin-top: 0.4rem;
 }
 
+.panel h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.secret-panel {
+  margin-bottom: 0.5rem;
+}
+
 textarea,
 input[type="password"],
+input[type="file"],
 select {
   width: 100%;
   padding: 0.7rem 0.8rem;
@@ -78,9 +88,17 @@ select {
   background: var(--field);
 }
 
+input[type="file"] {
+  padding: 0.55rem;
+}
+
 textarea {
   resize: vertical;
   min-height: 10rem;
+}
+
+textarea.transcript {
+  min-height: 6rem;
 }
 
 .hint {
@@ -125,6 +143,18 @@ button {
 button:disabled {
   opacity: 0.65;
   cursor: progress;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.recording {
+  margin: 0;
+  color: var(--error);
+  font-weight: 600;
 }
 
 .download {

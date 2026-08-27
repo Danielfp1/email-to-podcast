@@ -1,6 +1,43 @@
 export const MAX_TTS_CHARS = 4000;
+export const MAX_STT_SECONDS = 180;
+export const MAX_STT_BYTES = 8 * 1024 * 1024;
 export const SECRET_STORAGE_KEY = "app-secret";
 export const VOICE_STORAGE_KEY = "tts-voice";
+
+export const STT_ACCEPT =
+  ".mp3,.ogg,.wav,.webm,.m4a,audio/mpeg,audio/ogg,audio/wav,audio/webm,audio/mp4";
+
+const STT_MIME_BY_EXT: Record<string, string> = {
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  oga: "audio/ogg",
+  webm: "audio/webm",
+  m4a: "audio/mp4",
+  mp4: "audio/mp4",
+};
+
+const STT_MIME_ALIASES: Record<string, string> = {
+  "audio/mpeg": "audio/mpeg",
+  "audio/mp3": "audio/mpeg",
+  "audio/wav": "audio/wav",
+  "audio/wave": "audio/wav",
+  "audio/x-wav": "audio/wav",
+  "audio/ogg": "audio/ogg",
+  "application/ogg": "audio/ogg",
+  "audio/webm": "audio/webm",
+  "video/webm": "audio/webm",
+  "audio/mp4": "audio/mp4",
+  "audio/m4a": "audio/mp4",
+  "audio/x-m4a": "audio/mp4",
+};
+
+export function resolveSttMediaType(mime: string, filename: string): string | null {
+  const baseMime = mime.split(";")[0].trim().toLowerCase();
+  if (baseMime && STT_MIME_ALIASES[baseMime]) return STT_MIME_ALIASES[baseMime];
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  return STT_MIME_BY_EXT[ext] ?? null;
+}
 
 export const TTS_VOICES = [
   { id: "pt-BR-FranciscaNeural", label: "Francisca" },
