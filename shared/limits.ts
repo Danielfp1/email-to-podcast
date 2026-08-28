@@ -51,7 +51,7 @@ export const TTS_VOICES = [
 ] as const;
 
 export type TtsVoiceId = (typeof TTS_VOICES)[number]["id"];
-export const DEFAULT_TTS_VOICE: TtsVoiceId = "pt-BR-FranciscaNeural";
+export const DEFAULT_TTS_VOICE: TtsVoiceId = "pt-BR-ThalitaNeural";
 
 export function isTtsVoiceId(value: string): value is TtsVoiceId {
   return TTS_VOICES.some((voice) => voice.id === value);
