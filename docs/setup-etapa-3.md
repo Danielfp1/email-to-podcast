@@ -132,6 +132,75 @@ Depois do deploy:
 
 A tela da Microsoft autoriza; o refresh fica no Redis. Some ~90 dias parado — entra de novo na mesma URL.
 
+### Authentication (Preview)
+
+O menu **Authentication (Preview)** serve para o **redirect**, não para o manifesto.
+
+1. Plataforma **Web** (não SPA) → **Editar**.
+2. URI: `https://<seu-dominio>/api/auth/callback` (igual ao `AZURE_REDIRECT_URI`, sem barra extra no fim).
+3. **Supported accounts** nesta mesma tela: contas **pessoais**, ou org **e** pessoais. Não deixe só “este diretório”.
+4. Guia **Configurações** (concessão implícita): **não** marcar tokens implícitos. O app usa código + secret.
+
+Se Supported accounts não for clicável no Preview: *switch to the old experience* / experiência antiga.
+
+Portal: [portal.azure.com](https://portal.azure.com) · [Registros de aplicativo](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)
+
+### Conta pessoal e `AZURE_TENANT`
+
+O código usa `login.microsoftonline.com/<tenant>/`. Padrão: `consumers`.
+
+| Tipo no Azure (`signInAudience`) | `AZURE_TENANT` |
+|---|---|
+| Só contas Microsoft pessoais (`PersonalMicrosoftAccount`) | `consumers` |
+| Qualquer diretório **e** contas pessoais (`AzureADandPersonalMicrosoftAccount`) | `common` |
+| Só este diretório (`AzureADMyOrg`) | conta pessoal **não entra** |
+
+Erro **`unauthorized_client`**: *The client does not exist or is not enabled for consumers* — o app não aceita conta pessoal e/ou o tenant está `consumers` com registro só corporativo. Ajuste Supported accounts (ou manifesto, abaixo) e alinhe `AZURE_TENANT`. Não é senha errada.
+
+### Manifesto (`requestedAccessTokenVersion`)
+
+Ao mudar para contas pessoais, o portal pode falhar:
+
+`Property api.requestedAccessTokenVersion is invalid`
+
+Conta pessoal exige token **v2**. Faça **antes** de salvar Supported accounts:
+
+1. No app, menu **Gerenciar** → **Manifesto** (não Configuração do token, não Authentication Preview).
+2. No JSON, bloco `"api"` → `"requestedAccessTokenVersion": 2` (não `null`).
+3. **Salvar**.
+4. Voltar em Authentication → Supported accounts → pessoais (ou org + pessoais) → salvar.
+
+Se ainda falhar, no mesmo manifesto altere `signInAudience` **junto** com a versão 2:
+
+- só pessoal: `"signInAudience": "PersonalMicrosoftAccount"`
+- org + pessoal: `"signInAudience": "AzureADandPersonalMicrosoftAccount"`
+
+Salvar uma vez. Redeploy se mudou `AZURE_TENANT`. Login de novo.
+
+---
+
+## Timeout do cron (`FUNCTION_INVOCATION_TIMEOUT`)
+
+Hobby mata `/api/cron` aos **300 s**. O PowerShell só mostra o erro da Vercel; não é falha do `Invoke-WebRequest` em si.
+
+Na primeira execução real (login Outlook ok, pasta **Feed** com e-mails) o TTS de um lote grande ou de uma fatia de 7500 caracteres pode passar de 5 minutos. Sem gravar a fila no Redis antes, o próximo disparo recomeça do zero e estoura de novo.
+
+O código para o TTS ~230 s, grava o que já foi feito e responde JSON. O que não coube fica em `pendingJobs`.
+
+1. Redeploy depois dessa correção.
+2. Chame o cron de novo com timeout **maior que 300 s** (o padrão do PowerShell é 100 s e corta a leitura da resposta):
+
+```powershell
+Invoke-WebRequest -Uri "https://<seu-dominio>/api/cron" -Headers @{ Authorization = "Bearer <CRON_SECRET>" } -TimeoutSec 320
+```
+
+Use `https://`. `http://` vira 308 e o PowerShell reclama.
+
+3. Corpo esperado: `demo`, `processed`, `published`, `pendingJobs`. `demo: true` = sem refresh Graph. `pendingJobs` > 0 = rode de novo até zerar (o agendado das 08:00 SP também continua o lote).
+4. Logs: Vercel → projeto → **Logs**, filtro `/api/cron`.
+
+Não abra o XML do feed no navegador para “forçar” o cron. Assinar o RSS só lê o índice; quem gera MP3 é o `/api/cron`.
+
 ---
 
 ## Ordem sugerida

@@ -46,7 +46,7 @@ Feed (não divulgue o token): `/feed/<RSS_TOKEN>.xml`. Cron: a Vercel chama `GET
 
 ## Etapa 3 — Azure, Redis e Blob
 
-Setup completo (o que cada serviço faz, Marketplace vs Storage, nomes `KV_*` → `UPSTASH_*`, Blob `BLOB_STORE_ID`): [`docs/setup-etapa-3.md`](docs/setup-etapa-3.md).
+Setup completo (o que cada serviço faz, Marketplace vs Storage, Azure Preview/manifesto, nomes `KV_*` → `UPSTASH_*`): [`docs/setup-etapa-3.md`](docs/setup-etapa-3.md).
 
 ## O que não vai para o Git
 

@@ -1,5 +1,10 @@
 import { parseBuffer } from "music-metadata";
-import { CRON_BUDGET_MS, DEFAULT_TTS_VOICE, MAX_TTS_CHARS } from "../shared/limits.js";
+import {
+  CRON_BUDGET_MS,
+  DEFAULT_TTS_VOICE,
+  MAX_TTS_CHARS,
+  TTS_START_GUARD_MS,
+} from "../shared/limits.js";
 import { blobConfigured, uploadMp3 } from "./blob.js";
 import { chunkText } from "./chunk-text.js";
 import {
@@ -125,21 +130,34 @@ function advanceCursor(cursor: MailCursor | null, done: { id: string; receivedDa
   };
 }
 
-async function fillParts(job: PendingJob, deadline: number): Promise<PendingJob> {
+async function fillParts(
+  job: PendingJob,
+  deadline: number,
+  onProgress?: (job: PendingJob) => Promise<void>,
+): Promise<PendingJob> {
   const parts: PendingPart[] = [];
-  for (const part of job.parts) {
+  for (let i = 0; i < job.parts.length; i++) {
+    const part = job.parts[i];
     if (part.blobUrl) {
       parts.push(part);
       continue;
     }
-    if (Date.now() >= deadline) {
-      parts.push(part);
-      continue;
+    const remaining = deadline - Date.now();
+    if (remaining < TTS_START_GUARD_MS) {
+      parts.push(...job.parts.slice(i));
+      break;
     }
-    const mp3 = await synthesizeMp3(part.text, DEFAULT_TTS_VOICE);
-    const durationSeconds = await mp3DurationSeconds(mp3);
-    const blobUrl = await uploadMp3(`${job.id}-p${part.index}`, mp3);
-    parts.push({ ...part, blobUrl, bytes: mp3.length, durationSeconds });
+    try {
+      const mp3 = await synthesizeMp3(part.text, DEFAULT_TTS_VOICE, remaining - 15_000);
+      const durationSeconds = await mp3DurationSeconds(mp3);
+      const blobUrl = await uploadMp3(`${job.id}-p${part.index}`, mp3);
+      parts.push({ ...part, blobUrl, bytes: mp3.length, durationSeconds });
+      if (onProgress) await onProgress({ ...job, parts: [...parts, ...job.parts.slice(i + 1)] });
+    } catch (err) {
+      console.error(err);
+      parts.push(...job.parts.slice(i));
+      break;
+    }
   }
   return { ...job, parts };
 }
@@ -211,18 +229,52 @@ export async function ensureDemo(deadline = Date.now() + 50_000): Promise<boolea
   return true;
 }
 
+function mergeEpisodes(existing: RssEpisode[], incoming: RssEpisode[]): RssEpisode[] {
+  const byGuid = new Map(existing.map((item) => [item.guid, item]));
+  for (const item of incoming) byGuid.set(item.guid, item);
+  return [...byGuid.values()];
+}
+
+async function persistQueue(jobs: PendingJob[]): Promise<void> {
+  await setPending({ jobs, messages: [] });
+}
+
+async function publishJob(job: PendingJob, cursor: MailCursor | null): Promise<MailCursor> {
+  const episodes = mergeEpisodes(await getEpisodes(), episodesFromJob(job));
+  await setEpisodes(episodes);
+  const finishedMail = job.messageIds.map((id, index) => ({
+    id,
+    receivedDateTime: job.receivedDates[index] ?? job.pubDate,
+  }));
+  const next = advanceCursor(cursor, finishedMail);
+  await setCursor(next);
+  return next;
+}
+
 async function processJobs(
   jobs: PendingJob[],
   deadline: number,
-): Promise<{ done: PendingJob[]; leftover: PendingJob[] }> {
+  cursor: MailCursor | null,
+): Promise<{ done: PendingJob[]; leftover: PendingJob[]; cursor: MailCursor | null }> {
+  const working = jobs.map((job) => ({ ...job, parts: job.parts.map((part) => ({ ...part })) }));
   const done: PendingJob[] = [];
   const leftover: PendingJob[] = [];
-  for (const job of jobs) {
-    const filled = await fillParts(job, deadline);
-    if (jobComplete(filled)) done.push(filled);
-    else leftover.push(filled);
+  let nextCursor = cursor;
+  for (let i = 0; i < working.length; i++) {
+    const filled = await fillParts(working[i], deadline, async (partial) => {
+      working[i] = partial;
+      await persistQueue([...leftover, ...working.slice(i)]);
+    });
+    working[i] = filled;
+    if (jobComplete(filled)) {
+      nextCursor = await publishJob(filled, nextCursor);
+      done.push(filled);
+    } else {
+      leftover.push(filled);
+    }
+    await persistQueue([...leftover, ...working.slice(i + 1)]);
   }
-  return { done, leftover };
+  return { done, leftover, cursor: nextCursor };
 }
 
 export async function runFeed(): Promise<{
@@ -232,13 +284,14 @@ export async function runFeed(): Promise<{
   pendingJobs: number;
   pendingMessages: number;
 }> {
+  const deadline = Date.now() + CRON_BUDGET_MS;
   if (!redisConfigured()) {
     throw new Error("Redis não configurado");
   }
 
   const refresh = await getRefreshToken();
   if (!azureConfigured() || !refresh) {
-    const created = await ensureDemo(Date.now() + CRON_BUDGET_MS);
+    const created = await ensureDemo(deadline);
     return {
       demo: true,
       processed: created ? 1 : 0,
@@ -276,31 +329,17 @@ export async function runFeed(): Promise<{
     })),
   );
 
-  const deadline = Date.now() + CRON_BUDGET_MS;
-  const continued = await processJobs(pending.jobs, deadline);
-  const classified = classifyMessages(pending.messages);
-  const fresh = await processJobs(classified, deadline);
+  const classified = classifyMessages(pending.messages).filter(
+    (job) => !pending.jobs.some((existing) => existing.id === job.id),
+  );
+  const queue = [...pending.jobs, ...classified];
+  await persistQueue(queue);
 
-  const completed = [...continued.done, ...fresh.done];
-  const leftoverJobs = [...continued.leftover, ...fresh.leftover];
-
-  let episodes = await getEpisodes();
-  const finishedMail: { id: string; receivedDateTime: string }[] = [];
-  for (const job of completed) {
-    episodes = [...episodes, ...episodesFromJob(job)];
-    job.messageIds.forEach((id, index) => {
-      finishedMail.push({ id, receivedDateTime: job.receivedDates[index] ?? job.pubDate });
-    });
-  }
-  await setEpisodes(episodes);
-  if (finishedMail.length) {
-    await setCursor(advanceCursor(cursor, finishedMail));
-  }
-  await setPending({ jobs: leftoverJobs, messages: [] });
+  const { done: completed, leftover: leftoverJobs } = await processJobs(queue, deadline, cursor);
 
   return {
     demo: false,
-    processed: finishedMail.length,
+    processed: completed.reduce((sum, job) => sum + job.messageIds.length, 0),
     published: completed.reduce((sum, job) => sum + job.parts.length, 0),
     pendingJobs: leftoverJobs.length,
     pendingMessages: 0,

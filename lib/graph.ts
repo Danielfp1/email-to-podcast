@@ -1,4 +1,4 @@
-import { DEFAULT_OUTLOOK_FOLDER } from "../shared/limits.js";
+import { DEFAULT_OUTLOOK_FOLDER, GRAPH_FETCH_TIMEOUT_MS } from "../shared/limits.js";
 import { getFolderId, setFolderId } from "./redis.js";
 import { htmlToScript } from "./email-text.js";
 
@@ -48,6 +48,7 @@ async function tokenRequest(body: URLSearchParams): Promise<{ access_token: stri
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
+    signal: AbortSignal.timeout(GRAPH_FETCH_TIMEOUT_MS),
   });
   const payload = (await response.json()) as {
     access_token?: string;
@@ -103,6 +104,7 @@ async function graphGet<T>(accessToken: string, url: string): Promise<T> {
       Authorization: `Bearer ${accessToken}`,
       Prefer: 'outlook.body-content-type="text"',
     },
+    signal: AbortSignal.timeout(GRAPH_FETCH_TIMEOUT_MS),
   });
   if (!response.ok) {
     const text = await response.text();

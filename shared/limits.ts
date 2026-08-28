@@ -1,5 +1,9 @@
 export const MAX_TTS_CHARS = 7500;
-export const CRON_BUDGET_MS = 240_000;
+/** Pare o TTS ~70 s antes do teto Hobby (300 s) para ainda gravar Redis e responder JSON. */
+export const CRON_BUDGET_MS = 230_000;
+/** Não começa outra fatia se faltar menos que isso até o budget. */
+export const TTS_START_GUARD_MS = 45_000;
+export const GRAPH_FETCH_TIMEOUT_MS = 20_000;
 export const DEFAULT_OUTLOOK_FOLDER = "Feed";
 export const MAX_STT_SECONDS = 180;
 export const MAX_STT_BYTES = 8 * 1024 * 1024;

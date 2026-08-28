@@ -22,6 +22,7 @@ async function redisCommand(command: unknown[]): Promise<unknown> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(command),
+    signal: AbortSignal.timeout(15_000),
   });
   const payload = (await response.json()) as { result?: unknown; error?: string };
   if (!response.ok) {
