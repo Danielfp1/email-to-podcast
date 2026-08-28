@@ -8,41 +8,54 @@ Cola um texto na página, o servidor gera um MP3 com voz pt-BR (Microsoft Edge T
 
 A transcrição chama o Gemini (`gemini-2.5-flash`) na faixa gratuita do AI Studio. Clipes longos ou qualidade tipo Whisper `small` no PC **não** são o alvo Hobby: o limite é recado curto (3 minutos, 8 MB).
 
+Um cron diário (08:00 em São Paulo) lê a pasta Outlook **Feed**, gera MP3s no Vercel Blob e publica RSS em `/feed/<RSS_TOKEN>.xml`. Sem login Microsoft, o feed devolve um episódio de exemplo.
+
 ```mermaid
 flowchart LR
   ui[Pagina React]
   tts["POST /api/tts"]
   stt["POST /api/stt"]
   gemini[Gemini flash]
+  cron["GET /api/cron"]
+  graph[Microsoft Graph]
+  blob[Vercel Blob]
+  rss["GET /feed/token.xml"]
   ui --> tts
   ui --> stt
   stt --> gemini
+  cron --> graph
+  cron --> blob
+  rss --> blob
 ```
-
-Fora destas etapas: Outlook, Blob, RSS.
 
 ## Como rodar local
 
-1. Copie `.env.example` para `.env` e preencha `APP_SECRET` (qualquer string longa) e `GEMINI_API_KEY` ([AI Studio](https://aistudio.google.com/apikey), faixa gratuita com conta Google).
+1. Copie `.env.example` para `.env` e preencha pelo menos `APP_SECRET` (qualquer string longa) e `GEMINI_API_KEY` ([AI Studio](https://aistudio.google.com/apikey), faixa gratuita com conta Google). RSS, Redis, Blob e Azure: [`docs/setup-etapa-3.md`](docs/setup-etapa-3.md).
 2. `npm install`
 3. `npm run dev` — UI em `http://localhost:5173`, API em `http://127.0.0.1:3001`.
 
 A senha na página é o mesmo `APP_SECRET`. Ela fica só no `sessionStorage`, não no bundle.
 
-No deploy, `APP_SECRET` e `GEMINI_API_KEY` só no painel Vercel (Production e Preview). Não prefixe com `VITE_`.
+No deploy, os segredos só no painel Vercel (Production e Preview). Não prefixe com `VITE_`.
 
 ## Deploy (Hobby, projeto separado)
 
-Instância: [email-to-podcast.dan-figueiredo.dev.br](https://email-to-podcast.dan-figueiredo.dev.br). Projeto Vercel **à parte** do portfólio.
+Projeto Vercel **`email-to-podcast`**, à parte do portfólio. Login Outlook e callback usam o domínio **desse** projeto (`/api/auth/login?secret=<APP_SECRET>` e `/api/auth/callback`).
+
+Feed (não divulgue o token): `/feed/<RSS_TOKEN>.xml`. Cron: a Vercel chama `GET /api/cron` com `CRON_SECRET`.
+
+## Etapa 3 — Azure, Redis e Blob
+
+Setup completo (o que cada serviço faz, Marketplace vs Storage, nomes `KV_*` → `UPSTASH_*`, Blob `BLOB_STORE_ID`): [`docs/setup-etapa-3.md`](docs/setup-etapa-3.md).
 
 ## O que não vai para o Git
 
-`APP_SECRET`, `GEMINI_API_KEY`, tokens Microsoft, token do RSS, connection string do Blob, prints da pasta Feed. Se vazar no histórico, rotacionar.
+`APP_SECRET`, `GEMINI_API_KEY`, tokens Microsoft, token do RSS, tokens de Blob e Redis, prints da pasta Feed. Se vazar no histórico, rotacionar.
 
-Mesmo com o código aberto, `/api/tts` e `/api/stt` continuam com segredo. Sem isso o Hobby vira TTS/STT grátis para o mundo.
+Mesmo com o código aberto, `/api/tts`, `/api/stt` e `/api/cron` continuam com segredo. Sem isso o Hobby vira TTS/STT grátis para o mundo.
 
 ## Licença
 
 MIT. A síntese usa [`msedge-tts`](https://www.npmjs.com/package/msedge-tts) (MIT), não o pacote AGPL `edge-tts-universal`. A transcrição usa a [Gemini API](https://ai.google.dev/gemini-api/docs/audio) (`gemini-2.5-flash`).
 
-Áudio e texto passam por Vercel, pelo serviço de voz da Microsoft e pelo Gemini. Na faixa gratuita o Google pode usar o conteúdo para melhorar os produtos. Não é um produto para terceiros.
+Áudio e texto passam por Vercel, Blob, Redis, Microsoft Graph, pelo serviço de voz da Microsoft e pelo Gemini. Na faixa gratuita o Google pode usar o conteúdo para melhorar os produtos. Não é um produto para terceiros.

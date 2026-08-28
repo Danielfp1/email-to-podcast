@@ -1,4 +1,16 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "0 11 * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/feed/:token.xml",
+      "destination": "/api/feed?token=:token"
+    }
+  ],
   "functions": {
     "api/tts.ts": {
       "maxDuration": 60,
@@ -6,6 +18,22 @@
     },
     "api/stt.ts": {
       "maxDuration": 60,
+      "includeFiles": "{lib,shared}/**"
+    },
+    "api/cron.ts": {
+      "maxDuration": 300,
+      "includeFiles": "{lib,shared}/**"
+    },
+    "api/feed.ts": {
+      "maxDuration": 60,
+      "includeFiles": "{lib,shared}/**"
+    },
+    "api/auth/login.ts": {
+      "maxDuration": 30,
+      "includeFiles": "{lib,shared}/**"
+    },
+    "api/auth/callback.ts": {
+      "maxDuration": 30,
       "includeFiles": "{lib,shared}/**"
     }
   }

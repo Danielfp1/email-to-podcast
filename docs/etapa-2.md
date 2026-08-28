@@ -1,6 +1,6 @@
 # Plano: email-to-podcast etapa 2 — áudio vira texto
 
-Status: **em andamento** no repositório GitHub `email-to-podcast` (deploy em https://email-to-podcast.dan-figueiredo.dev.br).
+Status: **em andamento** no repositório GitHub `email-to-podcast` (deploy Hobby do projeto).
 
 ## Contexto
 
@@ -13,5 +13,5 @@ A transcrição é HTTP via Gemini (`gemini-2.5-flash`, faixa gratuita do AI Stu
 - [x] `POST /api/stt`: multipart `audio` → JSON `{ text }` (Gemini `gemini-2.5-flash`, pt)
 - [x] Mesma autenticação da etapa 1 (`Authorization: Bearer` + `APP_SECRET`)
 - [x] Página: senha compartilhada, arquivo, gravação curta, transcrição e copiar
-- [ ] Deploy Hobby; conferir no browser (desktop e telefone)
+- [x] Deploy Hobby; conferir no browser (desktop e telefone)
 - [x] README: aviso de que clipes longos e Whisper `small` no PC não são o alvo Hobby

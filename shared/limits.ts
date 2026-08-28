@@ -1,4 +1,6 @@
-export const MAX_TTS_CHARS = 4000;
+export const MAX_TTS_CHARS = 7500;
+export const CRON_BUDGET_MS = 240_000;
+export const DEFAULT_OUTLOOK_FOLDER = "Feed";
 export const MAX_STT_SECONDS = 180;
 export const MAX_STT_BYTES = 8 * 1024 * 1024;
 export const SECRET_STORAGE_KEY = "app-secret";
