@@ -1,6 +1,6 @@
 import { parseBuffer } from "music-metadata";
 import {
-  CRON_BUDGET_MS,
+  cronDeadlineMs,
   DEFAULT_TTS_VOICE,
   MAX_TTS_CHARS,
   TTS_START_GUARD_MS,
@@ -132,7 +132,7 @@ function advanceCursor(cursor: MailCursor | null, done: { id: string; receivedDa
 
 async function fillParts(
   job: PendingJob,
-  deadline: number,
+  deadline: number | null,
   onProgress?: (job: PendingJob) => Promise<void>,
 ): Promise<PendingJob> {
   const parts: PendingPart[] = [];
@@ -142,13 +142,13 @@ async function fillParts(
       parts.push(part);
       continue;
     }
-    const remaining = deadline - Date.now();
-    if (remaining < TTS_START_GUARD_MS) {
+    if (deadline != null && deadline - Date.now() < TTS_START_GUARD_MS) {
       parts.push(...job.parts.slice(i));
       break;
     }
     try {
-      const mp3 = await synthesizeMp3(part.text, DEFAULT_TTS_VOICE, remaining - 15_000);
+      const ttsTimeout = deadline != null ? Math.max(5_000, deadline - Date.now() - 15_000) : undefined;
+      const mp3 = await synthesizeMp3(part.text, DEFAULT_TTS_VOICE, ttsTimeout);
       const durationSeconds = await mp3DurationSeconds(mp3);
       const blobUrl = await uploadMp3(`${job.id}-p${part.index}`, mp3);
       parts.push({ ...part, blobUrl, bytes: mp3.length, durationSeconds });
@@ -207,7 +207,7 @@ function classifyMessages(messages: WaitingMessage[]): PendingJob[] {
   return jobs;
 }
 
-export async function ensureDemo(deadline = Date.now() + 50_000): Promise<boolean> {
+export async function ensureDemo(deadline: number | null = Date.now() + 50_000): Promise<boolean> {
   if (!redisConfigured() || !blobConfigured()) return false;
   const existing = await getEpisodes();
   if (existing.length) return false;
@@ -253,7 +253,7 @@ async function publishJob(job: PendingJob, cursor: MailCursor | null): Promise<M
 
 async function processJobs(
   jobs: PendingJob[],
-  deadline: number,
+  deadline: number | null,
   cursor: MailCursor | null,
 ): Promise<{ done: PendingJob[]; leftover: PendingJob[]; cursor: MailCursor | null }> {
   const working = jobs.map((job) => ({ ...job, parts: job.parts.map((part) => ({ ...part })) }));
@@ -284,7 +284,7 @@ export async function runFeed(): Promise<{
   pendingJobs: number;
   pendingMessages: number;
 }> {
-  const deadline = Date.now() + CRON_BUDGET_MS;
+  const deadline = cronDeadlineMs();
   if (!redisConfigured()) {
     throw new Error("Redis não configurado");
   }

@@ -5,6 +5,8 @@ import { handleFeedGet } from "../lib/handle-feed.js";
 import { handleSttPost } from "../lib/handle-stt.js";
 import { handleTtsPost } from "../lib/handle-tts.js";
 
+process.env.E2P_DEV_SERVER = "1";
+
 const PORT = 3001;
 
 async function readBody(req: IncomingMessage): Promise<Buffer> {

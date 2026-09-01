@@ -4,6 +4,16 @@ export const CRON_BUDGET_MS = 230_000;
 /** Não começa outra fatia se faltar menos que isso até o budget. */
 export const TTS_START_GUARD_MS = 45_000;
 export const GRAPH_FETCH_TIMEOUT_MS = 20_000;
+
+/** `scripts/dev-api.ts` liga isto. Na Vercel o budget de 230 s continua. */
+export function isLocalDevApi(): boolean {
+  return process.env.E2P_DEV_SERVER === "1";
+}
+
+export function cronDeadlineMs(): number | null {
+  if (isLocalDevApi()) return null;
+  return Date.now() + CRON_BUDGET_MS;
+}
 export const DEFAULT_OUTLOOK_FOLDER = "Feed";
 export const MAX_STT_SECONDS = 180;
 export const MAX_STT_BYTES = 8 * 1024 * 1024;

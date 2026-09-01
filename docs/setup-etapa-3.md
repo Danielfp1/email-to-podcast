@@ -185,7 +185,9 @@ Hobby mata `/api/cron` aos **300 s**. O PowerShell só mostra o erro da Vercel; 
 
 Na primeira execução real (login Outlook ok, pasta **Feed** com e-mails) o TTS de um lote grande ou de uma fatia de 7500 caracteres pode passar de 5 minutos. Sem gravar a fila no Redis antes, o próximo disparo recomeça do zero e estoura de novo.
 
-O código para o TTS ~230 s, grava o que já foi feito e responde JSON. O que não coube fica em `pendingJobs`.
+O código na **Vercel** para o TTS ~230 s, grava o que já foi feito e responde JSON. O que não coube fica em `pendingJobs`.
+
+No `npm run dev` (`scripts/dev-api.ts`) esse budget **não** vale: o lote pode ir até o fim numa chamada. O `Invoke-WebRequest` local ainda precisa de `-TimeoutSec` alto (o padrão é 100 s) só para o PowerShell esperar o JSON.
 
 1. Redeploy depois dessa correção.
 2. Chame o cron de novo com timeout **maior que 300 s** (o padrão do PowerShell é 100 s e corta a leitura da resposta):
@@ -196,7 +198,7 @@ Invoke-WebRequest -Uri "https://<seu-dominio>/api/cron" -Headers @{ Authorizatio
 
 Use `https://`. `http://` vira 308 e o PowerShell reclama.
 
-3. Corpo esperado: `demo`, `processed`, `published`, `pendingJobs`. `demo: true` = sem refresh Graph. `pendingJobs` > 0 = rode de novo até zerar (o agendado das 08:00 SP também continua o lote).
+3. Corpo esperado: `demo`, `processed`, `published`, `pendingJobs`, `elapsedMs`, `elapsedSec`. `demo: true` = sem refresh Graph. `pendingJobs` > 0 = rode de novo até zerar (o agendado das 08:00 SP também continua o lote). `elapsedSec` é o tempo de parede dessa corrida (no PC, ordem de grandeza para a Vercel; o teto Hobby continua 300 s).
 4. Logs: Vercel → projeto → **Logs**, filtro `/api/cron`.
 
 Não abra o XML do feed no navegador para “forçar” o cron. Assinar o RSS só lê o índice; quem gera MP3 é o `/api/cron`.
