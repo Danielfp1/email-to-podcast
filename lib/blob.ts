@@ -15,3 +15,11 @@ export async function uploadMp3(pathname: string, bytes: Buffer): Promise<string
   });
   return blob.url;
 }
+
+export async function uploadJson(pathname: string, data: unknown): Promise<string> {
+  const blob = await put(`episodes/${safeName(pathname)}.json`, JSON.stringify(data), {
+    access: "public",
+    contentType: "application/json+chapters",
+  });
+  return blob.url;
+}

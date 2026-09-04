@@ -1,6 +1,6 @@
 import { DEFAULT_OUTLOOK_FOLDER, GRAPH_FETCH_TIMEOUT_MS } from "../shared/limits.js";
 import { getFolderId, setFolderId } from "./redis.js";
-import { htmlToScript } from "./email-text.js";
+import { parseEmailHtml, type EmailCue } from "./email-text.js";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 
@@ -9,6 +9,7 @@ export type GraphMessage = {
   subject: string;
   receivedDateTime: string;
   text: string;
+  cues: EmailCue[];
 };
 
 type FolderRow = { id?: string; displayName?: string };
@@ -102,7 +103,6 @@ async function graphGet<T>(accessToken: string, url: string): Promise<T> {
   const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      Prefer: 'outlook.body-content-type="text"',
     },
     signal: AbortSignal.timeout(GRAPH_FETCH_TIMEOUT_MS),
   });
@@ -174,13 +174,14 @@ async function collectMessages(accessToken: string, startUrl: string): Promise<G
     const page: ODataPage<MessageRow> = await graphGet(accessToken, next);
     for (const row of page.value ?? []) {
       if (!row.id || !row.receivedDateTime) continue;
-      const text = htmlToScript(row.body?.content ?? "");
-      if (!text) continue;
+      const parsed = parseEmailHtml(row.body?.content ?? "");
+      if (!parsed.speech) continue;
       messages.push({
         id: row.id,
         subject: (row.subject ?? "").trim() || "Sem assunto",
         receivedDateTime: row.receivedDateTime,
-        text,
+        text: parsed.speech,
+        cues: parsed.cues,
       });
     }
     next = page["@odata.nextLink"] ?? null;

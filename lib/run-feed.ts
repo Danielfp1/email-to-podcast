@@ -5,8 +5,9 @@ import {
   MAX_TTS_CHARS,
   TTS_START_GUARD_MS,
 } from "../shared/limits.js";
-import { blobConfigured, uploadMp3 } from "./blob.js";
+import { blobConfigured, uploadJson, uploadMp3 } from "./blob.js";
 import { chunkText } from "./chunk-text.js";
+import { assignCueNumbers, emptyCounters, type EmailCue } from "./email-text.js";
 import {
   azureConfigured,
   listNewMessages,
@@ -15,6 +16,7 @@ import {
 } from "./graph.js";
 import {
   type MailCursor,
+  type PartSegment,
   type PendingJob,
   type PendingPart,
   type RssEpisode,
@@ -29,6 +31,13 @@ import {
   setPending,
   setRefreshToken,
 } from "./redis.js";
+import {
+  type Chapter,
+  chapterFromCue,
+  chaptersPayload,
+  cueTimeInSegment,
+  formatShownotes,
+} from "./shownotes.js";
 import { synthesizeMp3 } from "./tts.js";
 
 const DEMO_TEXT =
@@ -62,6 +71,19 @@ function withPartPrefix(text: string, index: number, total: number): string {
   return `Parte ${index} de ${total}. ${text}`;
 }
 
+function emailScriptLength(message: WaitingMessage): number {
+  return `Assunto: ${message.subject}.\n\n${message.text}`.length;
+}
+
+function cuesInText(cues: EmailCue[], text: string): EmailCue[] {
+  return cues.filter((cue) => text.includes(cue.mark));
+}
+
+function partSegments(part: PendingPart): PartSegment[] {
+  if (part.segments?.length) return part.segments;
+  return [{ text: part.text, cues: [] }];
+}
+
 async function mp3DurationSeconds(bytes: Buffer): Promise<number> {
   try {
     const meta = await parseBuffer(bytes, "audio/mpeg");
@@ -74,22 +96,54 @@ async function mp3DurationSeconds(bytes: Buffer): Promise<number> {
   return Math.max(1, Math.round(bytes.length / 12_000));
 }
 
-function makeJob(input: {
+function packSegments(segments: PartSegment[], max = MAX_TTS_CHARS): PartSegment[][] {
+  const parts: PartSegment[][] = [];
+  let current: PartSegment[] = [];
+  let length = 0;
+  for (const segment of segments) {
+    const extra = segment.text.length + (current.length ? 2 : 0);
+    if (current.length && length + extra > max) {
+      parts.push(current);
+      current = [];
+      length = 0;
+    }
+    current.push(segment);
+    length += extra;
+  }
+  if (current.length) parts.push(current);
+  return parts.length ? parts : [[]];
+}
+
+function makeJobFromSegments(input: {
   id: string;
   kind: "digest" | "series";
   title: string;
   pubDate: string;
   messageIds: string[];
   receivedDates: string[];
-  script: string;
+  segments: PartSegment[];
 }): PendingJob {
-  const chunks = chunkText(input.script);
-  const total = Math.max(1, chunks.length);
-  const parts: PendingPart[] = (chunks.length ? chunks : [input.script]).map((text, index) => ({
-    index: index + 1,
-    total,
-    text: withPartPrefix(text, index + 1, total),
-  }));
+  const packed = packSegments(input.segments);
+  const total = Math.max(1, packed.length);
+  const parts: PendingPart[] = packed.map((group, index) => {
+    const segs = group.map((segment, segIndex) =>
+      segIndex === 0
+        ? { ...segment, text: withPartPrefix(segment.text, index + 1, total) }
+        : segment,
+    );
+    if (input.kind === "series") {
+      const subject = input.segments.find((segment) => segment.subject)?.subject;
+      if (subject && segs[0] && !segs[0].subject) {
+        segs[0] = { ...segs[0], subject };
+      }
+    }
+    return {
+      index: index + 1,
+      total,
+      text: segs.map((segment) => segment.text).join("\n\n"),
+      segments: segs,
+    };
+  });
   return {
     id: input.id,
     kind: input.kind,
@@ -99,6 +153,31 @@ function makeJob(input: {
     receivedDates: input.receivedDates,
     parts,
   };
+}
+
+function digestSegments(messages: WaitingMessage[], label: string): PartSegment[] {
+  const counters = emptyCounters();
+  const intro = `Feed de ${label}.\n\n`;
+  return messages.map((message, index) => {
+    const assigned = assignCueNumbers(message.text, message.cues ?? [], counters);
+    let text = `Assunto: ${message.subject}.\n\n${assigned.speech}`;
+    if (index === 0 && intro.length + text.length <= MAX_TTS_CHARS) {
+      text = `${intro}${text}`;
+    }
+    return { text, subject: message.subject, cues: assigned.cues };
+  });
+}
+
+function seriesSegments(message: WaitingMessage): PartSegment[] {
+  const assigned = assignCueNumbers(message.text, message.cues ?? [], emptyCounters());
+  const script = `Assunto: ${message.subject}.\n\n${assigned.speech}`;
+  const chunks = chunkText(script);
+  const pieces = chunks.length ? chunks : [script];
+  return pieces.map((text, index) => ({
+    text,
+    subject: index === 0 ? message.subject : undefined,
+    cues: cuesInText(assigned.cues, text),
+  }));
 }
 
 function jobComplete(job: PendingJob): boolean {
@@ -114,6 +193,8 @@ function episodesFromJob(job: PendingJob): RssEpisode[] {
     url: part.blobUrl ?? "",
     length: part.bytes ?? 0,
     durationSeconds: part.durationSeconds ?? 1,
+    description: part.description,
+    chaptersUrl: part.chaptersUrl,
   }));
 }
 
@@ -128,6 +209,24 @@ function advanceCursor(cursor: MailCursor | null, done: { id: string; receivedDa
     lastReceived: lastReceived || new Date().toISOString(),
     processedIds: [...processedIds].slice(-200),
   };
+}
+
+function buildChapters(segments: PartSegment[], durations: number[]): Chapter[] {
+  const chapters: Chapter[] = [];
+  let acc = 0;
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    const duration = durations[i] ?? 0;
+    if (segment.subject) {
+      chapters.push({ startTime: acc, title: segment.subject });
+    }
+    for (const cue of segment.cues ?? []) {
+      chapters.push(chapterFromCue(cue, cueTimeInSegment(segment.text, cue.mark, acc, duration)));
+    }
+    acc += duration;
+  }
+  chapters.sort((a, b) => a.startTime - b.startTime);
+  return chapters;
 }
 
 async function fillParts(
@@ -147,11 +246,41 @@ async function fillParts(
       break;
     }
     try {
-      const ttsTimeout = deadline != null ? Math.max(5_000, deadline - Date.now() - 15_000) : undefined;
-      const mp3 = await synthesizeMp3(part.text, DEFAULT_TTS_VOICE, ttsTimeout);
-      const durationSeconds = await mp3DurationSeconds(mp3);
-      const blobUrl = await uploadMp3(`${job.id}-p${part.index}`, mp3);
-      parts.push({ ...part, blobUrl, bytes: mp3.length, durationSeconds });
+      const segs = partSegments(part);
+      if (!segs.length) {
+        parts.push(...job.parts.slice(i));
+        break;
+      }
+      const buffers: Buffer[] = [];
+      const durations: number[] = [];
+      for (const segment of segs) {
+        if (deadline != null && deadline - Date.now() < TTS_START_GUARD_MS) {
+          parts.push(...job.parts.slice(i));
+          return { ...job, parts };
+        }
+        const ttsTimeout = deadline != null ? Math.max(5_000, deadline - Date.now() - 15_000) : undefined;
+        const mp3 = await synthesizeMp3(segment.text, DEFAULT_TTS_VOICE, ttsTimeout);
+        const durationSeconds = await mp3DurationSeconds(mp3);
+        buffers.push(mp3);
+        durations.push(durationSeconds);
+      }
+      const concat = Buffer.concat(buffers);
+      const durationSeconds = durations.reduce((sum, value) => sum + value, 0);
+      const blobUrl = await uploadMp3(`${job.id}-p${part.index}`, concat);
+      const chapters = buildChapters(segs, durations);
+      const description = formatShownotes(chapters);
+      let chaptersUrl: string | undefined;
+      if (chapters.length) {
+        chaptersUrl = await uploadJson(`${job.id}-p${part.index}-chapters`, chaptersPayload(chapters));
+      }
+      parts.push({
+        ...part,
+        blobUrl,
+        bytes: concat.length,
+        durationSeconds: Math.max(1, durationSeconds),
+        description,
+        chaptersUrl,
+      });
       if (onProgress) await onProgress({ ...job, parts: [...parts, ...job.parts.slice(i + 1)] });
     } catch (err) {
       console.error(err);
@@ -164,8 +293,8 @@ async function fillParts(
 
 function classifyMessages(messages: WaitingMessage[]): PendingJob[] {
   if (!messages.length) return [];
-  const shorts = messages.filter((message) => message.text.length <= MAX_TTS_CHARS);
-  const longs = messages.filter((message) => message.text.length > MAX_TTS_CHARS);
+  const shorts = messages.filter((message) => emailScriptLength(message) <= MAX_TTS_CHARS);
+  const longs = messages.filter((message) => emailScriptLength(message) > MAX_TTS_CHARS);
   const jobs: PendingJob[] = [];
 
   if (shorts.length) {
@@ -174,33 +303,29 @@ function classifyMessages(messages: WaitingMessage[]): PendingJob[] {
     );
     const day = saoPauloDay(latest.receivedDateTime);
     const label = saoPauloLabel(latest.receivedDateTime);
-    const script = [
-      `Feed de ${label}.`,
-      ...shorts.flatMap((message) => [`Assunto: ${message.subject}.`, message.text]),
-    ].join("\n\n");
     jobs.push(
-      makeJob({
+      makeJobFromSegments({
         id: `digest-${day}-${shorts[0].id.replace(/[^a-zA-Z0-9]/g, "").slice(-10) || "batch"}`,
         kind: "digest",
-        title: `Feed ${label}`,
+        title: label,
         pubDate: latest.receivedDateTime,
         messageIds: shorts.map((message) => message.id),
         receivedDates: shorts.map((message) => message.receivedDateTime),
-        script,
+        segments: digestSegments(shorts, label),
       }),
     );
   }
 
   for (const message of longs) {
     jobs.push(
-      makeJob({
+      makeJobFromSegments({
         id: `mail-${message.id.replace(/[^a-zA-Z0-9]+/g, "").slice(-24) || "msg"}`,
         kind: "series",
-        title: message.subject,
+        title: saoPauloLabel(message.receivedDateTime),
         pubDate: message.receivedDateTime,
         messageIds: [message.id],
         receivedDates: [message.receivedDateTime],
-        script: message.text,
+        segments: seriesSegments(message),
       }),
     );
   }
@@ -212,15 +337,22 @@ export async function ensureDemo(deadline: number | null = Date.now() + 50_000):
   const existing = await getEpisodes();
   if (existing.length) return false;
   const now = new Date().toISOString();
+  const label = saoPauloLabel(now);
   const filled = await fillParts(
-    makeJob({
+    makeJobFromSegments({
       id: "demo",
       kind: "digest",
-      title: "Episódio de exemplo",
+      title: label,
       pubDate: now,
       messageIds: ["demo"],
       receivedDates: [now],
-      script: DEMO_TEXT,
+      segments: [
+        {
+          text: `Feed de ${label}.\n\nAssunto: Episódio de exemplo.\n\n${DEMO_TEXT}`,
+          subject: "Episódio de exemplo",
+          cues: [],
+        },
+      ],
     }),
     deadline,
   );
@@ -326,6 +458,7 @@ export async function runFeed(): Promise<{
       subject: message.subject,
       receivedDateTime: message.receivedDateTime,
       text: message.text,
+      cues: message.cues,
     })),
   );
 

@@ -1,3 +1,5 @@
+import type { EmailCue } from "./email-text.js";
+
 const KEYS = {
   refresh: "e2p:graph:refresh",
   folder: "e2p:graph:folder",
@@ -79,13 +81,22 @@ export type MailCursor = {
   processedIds: string[];
 };
 
+export type PartSegment = {
+  text: string;
+  subject?: string;
+  cues: EmailCue[];
+};
+
 export type PendingPart = {
   index: number;
   total: number;
   text: string;
+  segments: PartSegment[];
   blobUrl?: string;
   bytes?: number;
   durationSeconds?: number;
+  description?: string;
+  chaptersUrl?: string;
 };
 
 export type WaitingMessage = {
@@ -93,6 +104,7 @@ export type WaitingMessage = {
   subject: string;
   receivedDateTime: string;
   text: string;
+  cues?: EmailCue[];
 };
 
 export type PendingJob = {
@@ -117,6 +129,8 @@ export type RssEpisode = {
   url: string;
   length: number;
   durationSeconds: number;
+  description?: string;
+  chaptersUrl?: string;
 };
 
 export async function getCursor(): Promise<MailCursor | null> {

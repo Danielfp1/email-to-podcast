@@ -49,6 +49,7 @@ Cria-se em **Storage → Blob** (produto da Vercel), não no Marketplace do Upst
 | `RSS_TOKEN` | Pedaço secreto de `/feed/<RSS_TOKEN>.xml`. Não vai para o Git nem para o portfólio |
 | `CRON_SECRET` | A Vercel manda `Authorization: Bearer` no cron; muitas vezes ela já cria a var |
 | `GEMINI_API_KEY` | Transcrição (etapa 2) |
+| `PODCAST_IMAGE_URL` | Capa do canal no RSS (opcional). Sem ela, o feed aponta para `/cover.jpg` |
 
 `VERCEL_OIDC_TOKEN` no `.env.local` vem do `vercel env pull`. JWT curto. **Não** substitui Redis. No Blob novo, na **nuvem** o SDK pode autenticar com OIDC + `BLOB_STORE_ID`.
 

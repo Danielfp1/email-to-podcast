@@ -48,6 +48,16 @@ Feed (não divulgue o token): `/feed/<RSS_TOKEN>.xml`. Cron: a Vercel chama `GET
 
 Setup completo (o que cada serviço faz, Marketplace vs Storage, Azure Preview/manifesto, nomes `KV_*` → `UPSTASH_*`): [`docs/setup-etapa-3.md`](docs/setup-etapa-3.md).
 
+## Etapa 4 — shownotes, timestamps e capa
+
+Checklist: [`docs/etapa-4.md`](docs/etapa-4.md).
+
+O item do RSS usa a data `dd/mm/aaaa` no título (partes: `04/09/2026 (1/3)`). Assunto, links e imagens vão para as **shownotes**, com `M:SS` no começo da linha — AntennaPod, Pocket Casts, Overcast e Castro costumam transformar isso em pulo clicável. Apps que entendem Podcasting 2.0 também leem o JSON de capítulos (`<podcast:chapters>`). Apple e Spotify são irregulares nisso.
+
+Capa do programa: variável `PODCAST_IMAGE_URL` ou arquivo `public/cover.jpg` (quadrado JPEG/PNG, em geral 1400×1400 ou maior). Sem o arquivo e sem a variável, o RSS ainda aponta para `/cover.jpg`.
+
+O TTS não soletra URL: fala “link N” ou “imagem N”. Imagem `cid:` (embutida no Outlook) é anunciada, mas nesta etapa não é rehospedada no Blob.
+
 ## O que não vai para o Git
 
 `APP_SECRET`, `GEMINI_API_KEY`, tokens Microsoft, token do RSS, tokens de Blob e Redis, prints da pasta Feed. Se vazar no histórico, rotacionar.
