@@ -4,6 +4,8 @@
 
 Status: **implementado** no repositório GitHub `email-to-podcast`.
 
+Como o feed opera hoje: [`../feed.md`](../feed.md).
+
 ## Contexto
 
 O RSS passa a ter corpo do episódio (shownotes) e capítulos Podcasting 2.0, além da capa do canal.

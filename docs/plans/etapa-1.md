@@ -2,7 +2,7 @@
 
 **Task Notion:** [[FEAT] email-to-podcast etapa 1 — texto vira áudio](https://app.notion.com/p/FEAT-email-to-podcast-etapa-1-texto-vira-udio-3c871e25165981389cb2c3db12d534d3)
 
-Status: **em andamento** no repositório GitHub `email-to-podcast` (deploy Hobby do projeto).
+Status: **implementado** no repositório GitHub `email-to-podcast`.
 
 ## Contexto
 

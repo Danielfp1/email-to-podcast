@@ -1,6 +1,6 @@
-# Etapa 3 — Azure, Redis e Blob
+# Setup — Azure, Redis e Blob
 
-Setup do `email-to-podcast` na Vercel Hobby. A hospedagem continua na Vercel. Não cite a URL do deploy no Git; use o domínio do **seu** projeto nas URIs de redirect e no login.
+Setup do `email-to-podcast` na Vercel Hobby. A hospedagem continua na Vercel. Não cite a URL do deploy no Git; use o domínio do **seu** projeto nas URIs de redirect e no login. RSS, demo e capa: [`feed.md`](feed.md).
 
 ```mermaid
 flowchart LR

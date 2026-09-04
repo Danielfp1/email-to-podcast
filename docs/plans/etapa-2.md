@@ -1,6 +1,6 @@
 # Plano: email-to-podcast etapa 2 — áudio vira texto
 
-Status: **em andamento** no repositório GitHub `email-to-podcast` (deploy Hobby do projeto).
+Status: **implementado** no repositório GitHub `email-to-podcast`.
 
 ## Contexto
 
