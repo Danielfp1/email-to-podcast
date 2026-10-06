@@ -3,6 +3,7 @@
 | Arquivo | Uso |
 |---------|-----|
 | [`setup.md`](setup.md) | Azure, Redis, Blob, cron e variáveis |
+| [`dominio.md`](dominio.md) | Host `email-to-podcast.dan-figueiredo.com.br` e callback Azure |
 | [`feed.md`](feed.md) | RSS: título, shownotes, capa, demo, desconectar |
 | [`plans/README.md`](plans/README.md) | Etapas de implementação e status |
 

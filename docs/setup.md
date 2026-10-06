@@ -113,7 +113,8 @@ No PC: copie para o `.env` ou `vercel env pull` **depois** da store existir.
 1. [portal.azure.com](https://portal.azure.com) → **Registros de aplicativo** → **Novo registro**.
 2. Tipos de conta: **contas Microsoft pessoais** (ou org + pessoais, se a opção só-pessoal não aparecer).
 3. URI de redirecionamento: plataforma **Web**,  
-   `https://<seu-dominio>/api/auth/callback`
+   `https://<seu-dominio>/api/auth/callback`  
+   O host canônico e a URI completa estão em [`dominio.md`](dominio.md).
 4. **Permissões de API** (não Configuração de token) → Microsoft Graph → **delegadas** (não aplicativo):
    - **Mail.Read** (Mail)
    - **offline_access** (OpenId; busca `offline`). Sem isso no login, não vem refresh. O código ainda pede `openid offline_access Mail.Read` na URL.
