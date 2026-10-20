@@ -24,6 +24,10 @@
       "maxDuration": 300,
       "includeFiles": "{lib,shared}/**"
     },
+    "api/run-feed.ts": {
+      "maxDuration": 300,
+      "includeFiles": "{lib,shared}/**"
+    },
     "api/feed.ts": {
       "maxDuration": 60,
       "includeFiles": "{lib,shared}/**"

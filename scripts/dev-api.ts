@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage } from "node:http";
 import { handleAuthCallback, handleAuthLogin } from "../lib/handle-auth.js";
 import { handleCron } from "../lib/handle-cron.js";
+import { handleRunFeed } from "../lib/handle-run-feed.js";
 import { handleFeedGet } from "../lib/handle-feed.js";
 import { handleSttPost } from "../lib/handle-stt.js";
 import { handleTtsPost } from "../lib/handle-tts.js";
@@ -59,6 +60,10 @@ const server = createServer(async (req, res) => {
       const init: RequestInit = { method, headers };
       if (method === "POST") init.body = new Uint8Array(await readBody(req));
       response = await handleCron(new Request(url, init));
+    } else if (path === "/api/run-feed") {
+      const init: RequestInit = { method, headers };
+      if (method !== "GET" && method !== "HEAD") init.body = new Uint8Array(await readBody(req));
+      response = await handleRunFeed(new Request(url, init));
     } else if (method === "GET" && path === "/api/feed") {
       response = await handleFeedGet(new Request(url, { method, headers }));
     } else if (method === "GET" && path === "/api/auth/login") {
@@ -88,5 +93,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`API em http://127.0.0.1:${PORT}/api/tts, /api/stt, /api/cron, /api/feed e /feed/<token>.xml`);
+  console.log(`API em http://127.0.0.1:${PORT}/api/tts, /api/stt, /api/cron, /api/run-feed, /api/feed e /feed/<token>.xml`);
 });
