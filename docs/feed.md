@@ -39,6 +39,12 @@ Capa do **programa** (canal), não de cada episódio.
 
 Sem os dois, o RSS ainda aponta para `/cover.jpg`. No telefone use o domínio do deploy; `localhost` no app de podcast não carrega a arte da sua máquina.
 
+## Disparo manual
+
+O caminho na página é o botão **Gerar podcast**, com a senha já digitada (`APP_SECRET`). Ele chama `POST /api/run-feed` e faz o mesmo que o cron: pasta **Feed**, MP3 no Blob e item no RSS. Se `pendingJobs` for maior que zero, clique de novo. `demo: true` avisa que não há login do Outlook.
+
+O `Invoke-WebRequest` em `/api/cron` com `CRON_SECRET` continua valendo, no agendado e no PowerShell. Abrir o XML não processa a pasta **Feed** nem gera o MP3 desses e-mails.
+
 ## Demo (sem Outlook)
 
 Episódio de exemplo no RSS quando **não** há login Microsoft.

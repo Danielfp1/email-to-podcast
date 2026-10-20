@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import { SECRET_STORAGE_KEY } from "../shared/limits";
+import { PodcastPanel } from "./PodcastPanel";
 import { SttPanel } from "./SttPanel";
 import { TtsPanel } from "./TtsPanel";
 
@@ -51,6 +52,7 @@ export function App() {
 
       <TtsPanel secret={secret} />
       <SttPanel secret={secret} />
+      <PodcastPanel secret={secret} />
     </div>
   );
 }

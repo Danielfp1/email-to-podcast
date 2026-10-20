@@ -203,7 +203,9 @@ Use `https://`. `http://` vira 308 e o PowerShell reclama.
 3. Corpo esperado: `demo`, `processed`, `published`, `pendingJobs`, `elapsedMs`, `elapsedSec`. `demo: true` = sem refresh Graph. `pendingJobs` > 0 = rode de novo até zerar (o agendado das 08:00 SP também continua o lote). `elapsedSec` é o tempo de parede dessa corrida (no PC, ordem de grandeza para a Vercel; o teto Hobby continua 300 s).
 4. Logs: Vercel → projeto → **Logs**, filtro `/api/cron`.
 
-Não abra o XML do feed no navegador para “forçar” o cron. Assinar o RSS só lê o índice; quem gera MP3 é o `/api/cron`.
+O caminho manual na página é o botão **Gerar podcast** (a senha já digitada, `APP_SECRET`). Ele chama `POST /api/run-feed`, com o mesmo teto de 300 s e o mesmo JSON. O `Invoke-WebRequest` em `/api/cron` com `CRON_SECRET` continua valendo.
+
+Não abra o XML do feed no navegador para forçar a geração. Assinar o RSS só lê o índice; quem gera MP3 é o botão ou o `/api/cron`.
 
 ---
 
