@@ -229,11 +229,20 @@ function buildChapters(segments: PartSegment[], durations: number[]): Chapter[] 
   return chapters;
 }
 
+type FillPartsResult = {
+  job: PendingJob;
+  warning?: string;
+};
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error && err.message ? err.message : "Falha ao gerar áudio";
+}
+
 async function fillParts(
   job: PendingJob,
   deadline: number | null,
   onProgress?: (job: PendingJob) => Promise<void>,
-): Promise<PendingJob> {
+): Promise<FillPartsResult> {
   const parts: PendingPart[] = [];
   for (let i = 0; i < job.parts.length; i++) {
     const part = job.parts[i];
@@ -256,7 +265,7 @@ async function fillParts(
       for (const segment of segs) {
         if (deadline != null && deadline - Date.now() < TTS_START_GUARD_MS) {
           parts.push(...job.parts.slice(i));
-          return { ...job, parts };
+          return { job: { ...job, parts } };
         }
         const ttsTimeout = deadline != null ? Math.max(5_000, deadline - Date.now() - 15_000) : undefined;
         const mp3 = await synthesizeMp3(segment.text, DEFAULT_TTS_VOICE, ttsTimeout);
@@ -285,10 +294,10 @@ async function fillParts(
     } catch (err) {
       console.error(err);
       parts.push(...job.parts.slice(i));
-      break;
+      return { job: { ...job, parts }, warning: errorMessage(err) };
     }
   }
-  return { ...job, parts };
+  return { job: { ...job, parts } };
 }
 
 function classifyMessages(messages: WaitingMessage[]): PendingJob[] {
@@ -338,7 +347,7 @@ export async function ensureDemo(deadline: number | null = Date.now() + 50_000):
   if (existing.length) return false;
   const now = new Date().toISOString();
   const label = saoPauloLabel(now);
-  const filled = await fillParts(
+  const { job: filled } = await fillParts(
     makeJobFromSegments({
       id: "demo",
       kind: "digest",
@@ -387,16 +396,24 @@ async function processJobs(
   jobs: PendingJob[],
   deadline: number | null,
   cursor: MailCursor | null,
-): Promise<{ done: PendingJob[]; leftover: PendingJob[]; cursor: MailCursor | null }> {
+): Promise<{
+  done: PendingJob[];
+  leftover: PendingJob[];
+  cursor: MailCursor | null;
+  warning?: string;
+}> {
   const working = jobs.map((job) => ({ ...job, parts: job.parts.map((part) => ({ ...part })) }));
   const done: PendingJob[] = [];
   const leftover: PendingJob[] = [];
   let nextCursor = cursor;
+  let warning: string | undefined;
   for (let i = 0; i < working.length; i++) {
-    const filled = await fillParts(working[i], deadline, async (partial) => {
+    const filledResult = await fillParts(working[i], deadline, async (partial) => {
       working[i] = partial;
       await persistQueue([...leftover, ...working.slice(i)]);
     });
+    const filled = filledResult.job;
+    if (filledResult.warning) warning = filledResult.warning;
     working[i] = filled;
     if (jobComplete(filled)) {
       nextCursor = await publishJob(filled, nextCursor);
@@ -406,7 +423,7 @@ async function processJobs(
     }
     await persistQueue([...leftover, ...working.slice(i + 1)]);
   }
-  return { done, leftover, cursor: nextCursor };
+  return { done, leftover, cursor: nextCursor, warning };
 }
 
 export async function runFeed(): Promise<{
@@ -415,6 +432,7 @@ export async function runFeed(): Promise<{
   published: number;
   pendingJobs: number;
   pendingMessages: number;
+  warning?: string;
 }> {
   const deadline = cronDeadlineMs();
   if (!redisConfigured()) {
@@ -468,7 +486,11 @@ export async function runFeed(): Promise<{
   const queue = [...pending.jobs, ...classified];
   await persistQueue(queue);
 
-  const { done: completed, leftover: leftoverJobs } = await processJobs(queue, deadline, cursor);
+  const { done: completed, leftover: leftoverJobs, warning } = await processJobs(
+    queue,
+    deadline,
+    cursor,
+  );
 
   return {
     demo: false,
@@ -476,5 +498,6 @@ export async function runFeed(): Promise<{
     published: completed.reduce((sum, job) => sum + job.parts.length, 0),
     pendingJobs: leftoverJobs.length,
     pendingMessages: 0,
+    ...(warning ? { warning } : {}),
   };
 }
