@@ -106,6 +106,18 @@ Em Environment Variables:
 
 No PC: copie para o `.env` ou `vercel env pull` **depois** da store existir.
 
+`npm run dev:api` carrega `.env` e depois `.env.local` — o **segundo vence**. Se o `.env.local` tiver um `BLOB_READ_WRITE_TOKEN` de store apagada ou de outro projeto, o upload falha com *store does not exist* / *access denied* mesmo com o `.env` certo. Ajuste o token no arquivo que estiver valendo, ou remova a linha duplicada.
+
+---
+
+## Edge TTS (`msedge-tts`)
+
+A síntese usa o pacote [`msedge-tts`](https://www.npmjs.com/package/msedge-tts) (MIT), **versão mínima 2.1.1**. Em outubro de 2026 a Microsoft mudou o handshake (`Sec-MS-GEC` v2); a `2.0.7`/`2.1.0` falham com `403` ou `Unexpected server response: 200` no WebSocket. Mantenha o `package-lock.json` na linha 2.1.1+ — sem patch manual em `node_modules`.
+
+`429` = limite por IP do endpoint da Microsoft. Espere alguns minutos e rode de novo (cron ou **Gerar podcast**). A fila no Redis permanece.
+
+Se TTS ou Blob falhar no meio do lote, a API responde **200** com `pendingJobs` > 0 e um campo opcional `warning` (mensagem curta, sem token). A página mostra esse texto. Parar só por budget (~230 s na Vercel) continua sem `warning`: só o pedido de outro clique.
+
 ---
 
 ## 3. Azure — registro de aplicativo
