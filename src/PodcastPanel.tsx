@@ -5,6 +5,7 @@ type RunFeedResult = {
   processed: number;
   published: number;
   pendingJobs: number;
+  warning?: string;
 };
 
 type PodcastPanelProps = {
@@ -42,12 +43,18 @@ export function PodcastPanel({ secret }: PodcastPanelProps) {
         setError(payload?.error ?? `Erro ${response.status}`);
         return;
       }
+      const warning =
+        typeof payload?.warning === "string" && payload.warning.trim()
+          ? payload.warning.trim()
+          : undefined;
       setResult({
         demo: payload?.demo === true,
         processed: payload?.processed ?? 0,
         published: payload?.published ?? 0,
         pendingJobs: payload?.pendingJobs ?? 0,
+        warning,
       });
+      setError(warning ?? null);
     } catch {
       setResult(null);
       setError("Não foi possível falar com o servidor.");
@@ -76,7 +83,9 @@ export function PodcastPanel({ secret }: PodcastPanelProps) {
 
       {result && result.pendingJobs > 0 ? (
         <p className="hint" role="status">
-          Ainda há itens na fila. Clique de novo para continuar.
+          {result.warning
+            ? "Ainda há itens na fila. Corrija o problema e clique de novo para continuar."
+            : "Ainda há itens na fila. Clique de novo para continuar."}
         </p>
       ) : null}
 
